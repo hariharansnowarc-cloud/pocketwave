@@ -1,61 +1,90 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '../lib/supabase'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
+import Link from 'next/link'
 
 export default function LoginPage() {
   const supabase = createClient()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const [mode, setMode] = useState<'login' | 'signup'>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [username, setUsername] = useState('')
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
 
-  async function login() {
+  useEffect(() => {
+    if (searchParams.get('mode') === 'signup') setMode('signup')
+  }, [searchParams])
+
+  async function handleSubmit() {
     setLoading(true)
     setError('')
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) {
-      setError(error.message)
-      setLoading(false)
+    setSuccess('')
+
+    if (mode === 'signup') {
+      if (!username.trim()) { setError('Please enter a username.'); setLoading(false); return }
+      if (password.length < 6) { setError('Password must be at least 6 characters.'); setLoading(false); return }
+      const { error } = await supabase.auth.signUp({
+        email, password,
+        options: { data: { full_name: username } }
+      })
+      if (error) { setError(error.message) }
+      else { setSuccess('Account created! Please sign in.'); setMode('login') }
     } else {
-      router.push('/admin')
+      const { error } = await supabase.auth.signInWithPassword({ email, password })
+      if (error) { setError(error.message) }
+      else { router.push('/home'); router.refresh() }
     }
+    setLoading(false)
   }
 
-  return (
-    <main className="min-h-screen bg-[#0a0a0f] flex items-center justify-center px-6">
-      <div className="w-full max-w-sm">
-        <h1 className="text-2xl font-bold text-white mb-2">Sign in</h1>
-        <p className="text-white/40 text-sm mb-8">Admin access only</p>
+  const inp = {
+    width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+    borderRadius: '12px', padding: '12px 16px', fontSize: '14px', color: 'var(--cream-100)',
+    outline: 'none', marginBottom: '12px'
+  } as React.CSSProperties
 
-        <div className="space-y-3">
-          <input
-            type="email"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            placeholder="Email"
-            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-white/20 outline-none focus:border-white/30"
-          />
-          <input
-            type="password"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            placeholder="Password"
-            onKeyDown={e => e.key === 'Enter' && login()}
-            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-white/20 outline-none focus:border-white/30"
-          />
+  return (
+    <main style={{ minHeight: '100vh', background: 'var(--green-950)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
+
+      <Link href="/" style={{ fontFamily: 'Lora, serif', fontSize: '24px', fontWeight: 700, color: 'var(--cream-100)', marginBottom: '2.5rem', display: 'block', textAlign: 'center' }}>
+        Pocketwave
+      </Link>
+
+      <div style={{ width: '100%', maxWidth: '400px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '20px', padding: '2rem' }}>
+
+        {/* TABS */}
+        <div style={{ display: 'flex', background: 'rgba(255,255,255,0.05)', borderRadius: '12px', padding: '4px', marginBottom: '1.75rem' }}>
+          {(['login', 'signup'] as const).map(m => (
+            <button key={m} onClick={() => { setMode(m); setError(''); setSuccess('') }}
+              style={{ flex: 1, padding: '8px', borderRadius: '10px', fontSize: '13px', fontWeight: 500, border: 'none', cursor: 'pointer', transition: 'all 0.15s', background: mode === m ? 'var(--green-700)' : 'transparent', color: mode === m ? 'white' : 'rgba(255,255,255,0.35)' }}>
+              {m === 'login' ? 'Sign in' : 'Create account'}
+            </button>
+          ))}
         </div>
 
-        {error && <p className="text-red-400 text-xs mt-3">{error}</p>}
+        {/* FORM */}
+        {mode === 'signup' && (
+          <input style={inp} type="text" value={username} onChange={e => setUsername(e.target.value)} placeholder="Username" />
+        )}
+        <input style={inp} type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email address" />
+        <input style={{ ...inp, marginBottom: '0' }} type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Password" onKeyDown={e => e.key === 'Enter' && handleSubmit()} />
 
-        <button
-          onClick={login}
-          disabled={loading}
-          className="w-full mt-4 bg-white text-black py-3 rounded-xl font-medium text-sm hover:opacity-90 disabled:opacity-40"
-        >
-          {loading ? 'Signing in...' : 'Sign in →'}
+        {error && <p style={{ color: '#f87171', fontSize: '13px', marginTop: '10px' }}>{error}</p>}
+        {success && <p style={{ color: 'var(--green-400)', fontSize: '13px', marginTop: '10px' }}>{success}</p>}
+
+        <button onClick={handleSubmit} disabled={loading}
+          style={{ width: '100%', marginTop: '16px', background: 'var(--green-600)', color: 'white', padding: '12px', borderRadius: '12px', fontSize: '14px', fontWeight: 500, border: 'none', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1, transition: 'opacity 0.15s' }}>
+          {loading ? 'Please wait...' : mode === 'login' ? 'Sign in →' : 'Create account →'}
         </button>
+
+        <p style={{ textAlign: 'center', fontSize: '12px', color: 'rgba(255,255,255,0.2)', marginTop: '1.25rem' }}>
+          By continuing you agree to our terms of service.
+        </p>
       </div>
     </main>
   )
