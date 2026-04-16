@@ -1,90 +1,92 @@
-import { createServerSupabaseClient } from '../lib/supabase-server'
+'use client'
+import { useState, useEffect, Suspense } from 'react'
+import { createClient } from '../lib/supabase'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { redirect } from 'next/navigation'
 
-export default async function HomePage({ searchParams }: any) {
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+function LoginForm() {
+  const supabase = createClient()
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const [mode, setMode] = useState<'login' | 'signup'>('login')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [username, setUsername] = useState('')
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+  const [loading, setLoading] = useState(false)
 
-  const search = searchParams?.q || ''
-  const { data: profile } = await supabase.from('profiles').select('username, role').eq('id', user.id).single()
+  useEffect(() => {
+    if (searchParams.get('mode') === 'signup') setMode('signup')
+  }, [searchParams])
 
-  let query = supabase.from('stories').select('*').eq('is_published', true).order('created_at', { ascending: false })
-  if (search) query = query.ilike('title', `%${search}%`)
-  const { data: stories } = await query
+  async function handleSubmit() {
+    setLoading(true)
+    setError('')
+    setSuccess('')
+    if (mode === 'signup') {
+      if (!username.trim()) { setError('Please enter a username.'); setLoading(false); return }
+      if (password.length < 6) { setError('Password must be at least 6 characters.'); setLoading(false); return }
+      const { error } = await supabase.auth.signUp({
+        email, password,
+        options: { data: { full_name: username } }
+      })
+      if (error) setError(error.message)
+      else setSuccess('Account created! Check your email to confirm, then sign in.')
+    } else {
+      const { error } = await supabase.auth.signInWithPassword({ email, password })
+      if (error) setError(error.message)
+      else { router.push('/home'); router.refresh() }
+    }
+    setLoading(false)
+  }
 
-  const navStyle: React.CSSProperties = {
-    borderBottom: '1px solid rgba(255,255,255,0.06)', padding: '0 2rem', height: '60px',
-    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    position: 'sticky', top: 0, zIndex: 50, background: 'rgba(10,26,15,0.95)', backdropFilter: 'blur(12px)'
+  const inp: React.CSSProperties = {
+    width: '100%', background: '#fff', border: '1px solid var(--border2)',
+    borderRadius: '10px', padding: '11px 14px', fontSize: '14px',
+    color: 'var(--ink)', outline: 'none', marginBottom: '10px'
   }
 
   return (
-    <main style={{ background: 'var(--green-950)', minHeight: '100vh' }}>
+    <main style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
+      <Link href="/" style={{ fontFamily: 'Lora, serif', fontSize: '24px', fontWeight: 700, color: 'var(--ink)', marginBottom: '2rem', display: 'block', textAlign: 'center' }}>
+        Pocketwave
+      </Link>
 
-      {/* NAV */}
-      <nav style={navStyle}>
-        <Link href="/home" style={{ fontFamily: 'Lora, serif', fontSize: '22px', fontWeight: 700, color: 'var(--cream-100)', letterSpacing: '-0.5px' }}>
-          Pocketwave
-        </Link>
-
-        <form action="/home" method="GET" style={{ flex: 1, maxWidth: '380px', margin: '0 2rem' }}>
-          <input name="q" defaultValue={search} placeholder="Search stories and episodes..."
-            style={{ width: '100%', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '999px', padding: '8px 18px', fontSize: '13px', color: 'var(--cream-100)', outline: 'none' }} />
-        </form>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          {profile?.role === 'admin' && (
-            <Link href="/admin" style={{ fontSize: '12px', color: 'var(--green-400)', background: 'rgba(58,158,96,0.1)', padding: '5px 14px', borderRadius: '999px', border: '1px solid rgba(58,158,96,0.25)' }}>
-              Admin
-            </Link>
-          )}
-          <Link href="/profile" style={{ width: '34px', height: '34px', borderRadius: '50%', background: 'var(--green-800)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 600, color: 'var(--green-300)' }}>
-            {profile?.username?.[0]?.toUpperCase() || '?'}
-          </Link>
-        </div>
-      </nav>
-
-      {/* CONTENT */}
-      <section style={{ maxWidth: '1040px', margin: '0 auto', padding: '3rem 2rem' }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: '2rem' }}>
-          <h1 style={{ fontFamily: 'Lora, serif', fontSize: '28px', fontWeight: 600, color: 'var(--cream-100)' }}>
-            {search ? `Results for "${search}"` : 'All stories'}
-          </h1>
-          <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.2)' }}>{stories?.length || 0} stories</span>
+      <div style={{ width: '100%', maxWidth: '400px', background: '#fff', border: '1px solid var(--border)', borderRadius: '20px', padding: '2rem', boxShadow: '0 2px 20px rgba(0,0,0,0.04)' }}>
+        <div style={{ display: 'flex', background: 'var(--bg)', borderRadius: '10px', padding: '3px', marginBottom: '1.5rem' }}>
+          {(['login', 'signup'] as const).map(m => (
+            <button key={m} onClick={() => { setMode(m); setError(''); setSuccess('') }}
+              style={{ flex: 1, padding: '8px', borderRadius: '8px', fontSize: '13px', fontWeight: 500, border: 'none', cursor: 'pointer', transition: 'all 0.15s', background: mode === m ? '#fff' : 'transparent', color: mode === m ? 'var(--ink)' : 'var(--muted)', boxShadow: mode === m ? '0 1px 4px rgba(0,0,0,0.08)' : 'none' }}>
+              {m === 'login' ? 'Sign in' : 'Create account'}
+            </button>
+          ))}
         </div>
 
-        {stories && stories.length > 0 ? (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
-            {stories.map((story: any) => (
-              <Link key={story.id} href={`/stories/${story.slug}`}
-                style={{ display: 'block', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '16px', overflow: 'hidden' }}>
-                {story.thumbnail_url ? (
-                  <img src={story.thumbnail_url} alt={story.title} style={{ width: '100%', height: '190px', objectFit: 'cover' }} />
-                ) : (
-                  <div style={{ width: '100%', height: '190px', background: 'var(--green-900)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <span style={{ fontFamily: 'Lora, serif', fontSize: '4rem', color: 'var(--green-700)', fontStyle: 'italic' }}>{story.title[0]}</span>
-                  </div>
-                )}
-                <div style={{ padding: '1.25rem' }}>
-                  <div style={{ fontSize: '11px', fontWeight: 500, color: 'var(--green-400)', background: 'rgba(58,158,96,0.1)', padding: '3px 10px', borderRadius: '999px', display: 'inline-block', marginBottom: '0.75rem' }}>
-                    {story.genre}
-                  </div>
-                  <h2 style={{ fontFamily: 'Lora, serif', fontSize: '19px', fontWeight: 600, color: 'var(--cream-100)', marginBottom: '0.5rem' }}>{story.title}</h2>
-                  <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.35)', lineHeight: 1.6, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as any }}>{story.description}</p>
-                  <div style={{ marginTop: '1rem', fontSize: '12px', color: 'var(--green-400)' }}>Read now →</div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        ) : (
-          <div style={{ textAlign: 'center', padding: '6rem 0', color: 'rgba(255,255,255,0.2)' }}>
-            <p style={{ fontSize: '20px', marginBottom: '8px' }}>No stories found</p>
-            <p style={{ fontSize: '14px' }}>Try a different search term</p>
-          </div>
-        )}
-      </section>
+        {mode === 'signup' && <input style={inp} type="text" value={username} onChange={e => setUsername(e.target.value)} placeholder="Username" />}
+        <input style={inp} type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email address" />
+        <input style={{ ...inp, marginBottom: 0 }} type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Password" onKeyDown={e => e.key === 'Enter' && handleSubmit()} />
+
+        {error && <p style={{ color: '#dc2626', fontSize: '13px', marginTop: '10px' }}>{error}</p>}
+        {success && <p style={{ color: 'var(--green-700)', fontSize: '13px', marginTop: '10px' }}>{success}</p>}
+
+        <button onClick={handleSubmit} disabled={loading}
+          style={{ width: '100%', marginTop: '14px', background: 'var(--green-600)', color: 'white', padding: '12px', borderRadius: '10px', fontSize: '14px', fontWeight: 500, border: 'none', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1 }}>
+          {loading ? 'Please wait...' : mode === 'login' ? 'Sign in →' : 'Create account →'}
+        </button>
+
+        <p style={{ textAlign: 'center', fontSize: '12px', color: 'var(--subtle)', marginTop: '1rem' }}>
+          By continuing you agree to our terms of service.
+        </p>
+      </div>
     </main>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<main style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><p style={{ color: 'var(--muted)' }}>Loading...</p></main>}>
+      <LoginForm />
+    </Suspense>
   )
 }

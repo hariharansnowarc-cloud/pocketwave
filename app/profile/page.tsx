@@ -9,6 +9,7 @@ export default function ProfilePage() {
   const router = useRouter()
   const [profile, setProfile] = useState<any>(null)
   const [user, setUser] = useState<any>(null)
+  const [stats, setStats] = useState({ comments: 0, likes: 0, bookmarks: 0 })
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data }) => {
@@ -16,6 +17,12 @@ export default function ProfilePage() {
       setUser(data.user)
       const { data: p } = await supabase.from('profiles').select('*').eq('id', data.user.id).single()
       setProfile(p)
+      const [{ count: c }, { count: l }, { count: b }] = await Promise.all([
+        supabase.from('comments').select('*', { count: 'exact', head: true }).eq('user_id', data.user.id),
+        supabase.from('likes').select('*', { count: 'exact', head: true }).eq('user_id', data.user.id),
+        supabase.from('bookmarks').select('*', { count: 'exact', head: true }).eq('user_id', data.user.id),
+      ])
+      setStats({ comments: c || 0, likes: l || 0, bookmarks: b || 0 })
     })
   }, [])
 
@@ -25,37 +32,56 @@ export default function ProfilePage() {
   }
 
   if (!profile) return (
-    <main style={{ background: 'var(--green-950)', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <p style={{ color: 'rgba(255,255,255,0.3)' }}>Loading...</p>
+    <main style={{ background: 'var(--bg)', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <p style={{ color: 'var(--muted)' }}>Loading...</p>
     </main>
   )
 
   return (
-    <main style={{ background: 'var(--green-950)', minHeight: '100vh' }}>
-      <nav style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', padding: '0 2rem', height: '60px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 50, background: 'rgba(10,26,15,0.95)', backdropFilter: 'blur(12px)' }}>
-        <Link href="/home" style={{ fontFamily: 'Lora, serif', fontSize: '22px', fontWeight: 700, color: 'var(--cream-100)' }}>Pocketwave</Link>
-        <Link href="/home" style={{ fontSize: '13px', color: 'rgba(255,255,255,0.35)' }}>← Back</Link>
+    <main style={{ background: 'var(--bg)', minHeight: '100vh' }}>
+      <nav style={{ borderBottom: '1px solid var(--border)', padding: '0 2rem', height: '60px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 50, background: 'rgba(248,249,246,0.95)', backdropFilter: 'blur(12px)' }}>
+        <Link href="/home" style={{ fontFamily: 'Lora, serif', fontSize: '22px', fontWeight: 700, color: 'var(--ink)', letterSpacing: '-0.5px' }}>Pocketwave</Link>
+        <Link href="/home" style={{ fontSize: '13px', color: 'var(--muted)' }}>← Home</Link>
       </nav>
 
       <section style={{ maxWidth: '520px', margin: '0 auto', padding: '4rem 2rem' }}>
         <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
-          <div style={{ width: '72px', height: '72px', borderRadius: '50%', background: 'var(--green-800)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '28px', fontWeight: 700, color: 'var(--green-300)', margin: '0 auto 1rem' }}>
+          <div style={{ width: '76px', height: '76px', borderRadius: '50%', background: 'var(--green-100)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '28px', fontWeight: 700, color: 'var(--green-700)', margin: '0 auto 1rem', border: '3px solid var(--green-200)' }}>
             {profile.username?.[0]?.toUpperCase() || '?'}
           </div>
-          <h1 style={{ fontFamily: 'Lora, serif', fontSize: '24px', fontWeight: 600, color: 'var(--cream-100)', marginBottom: '4px' }}>{profile.username}</h1>
-          <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.3)' }}>{user?.email}</p>
-          <span style={{ display: 'inline-block', marginTop: '8px', fontSize: '11px', fontWeight: 500, color: profile.role === 'admin' ? 'var(--gold)' : 'var(--green-400)', background: profile.role === 'admin' ? 'rgba(201,168,76,0.1)' : 'rgba(58,158,96,0.1)', padding: '3px 12px', borderRadius: '999px' }}>
-            {profile.role === 'admin' ? 'Admin' : 'Reader'}
+          <h1 style={{ fontFamily: 'Lora, serif', fontSize: '24px', fontWeight: 600, color: 'var(--ink)', marginBottom: '4px' }}>{profile.username}</h1>
+          <p style={{ fontSize: '13px', color: 'var(--muted)' }}>{user?.email}</p>
+          <span style={{ display: 'inline-block', marginTop: '8px', fontSize: '11px', fontWeight: 600, color: profile.role === 'admin' ? 'var(--gold)' : 'var(--green-700)', background: profile.role === 'admin' ? 'var(--gold-bg)' : 'var(--green-100)', padding: '3px 12px', borderRadius: '999px' }}>
+            {profile.role === 'admin' ? '★ Admin' : 'Reader'}
           </span>
         </div>
 
-        <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '16px', padding: '1.5rem', marginBottom: '1rem' }}>
-          <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.3)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Member since</p>
-          <p style={{ fontSize: '15px', color: 'var(--cream-100)' }}>{new Date(profile.created_at).toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+        {/* STATS */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: '1.5rem' }}>
+          {[
+            { label: 'Comments', value: stats.comments },
+            { label: 'Likes given', value: stats.likes },
+            { label: 'Saved', value: stats.bookmarks },
+          ].map((s, i) => (
+            <div key={i} style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: '12px', padding: '1rem', textAlign: 'center' }}>
+              <p style={{ fontFamily: 'Lora, serif', fontSize: '1.6rem', fontWeight: 700, color: 'var(--green-700)' }}>{s.value}</p>
+              <p style={{ fontSize: '12px', color: 'var(--subtle)', marginTop: '3px' }}>{s.label}</p>
+            </div>
+          ))}
         </div>
 
+        <div style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: '14px', padding: '1.25rem', marginBottom: '1rem' }}>
+          <p style={{ fontSize: '11px', color: 'var(--subtle)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>Member since</p>
+          <p style={{ fontSize: '15px', color: 'var(--ink)', fontWeight: 500 }}>{new Date(profile.created_at).toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+        </div>
+
+        <Link href="/bookmarks" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff', border: '1px solid var(--border)', borderRadius: '14px', padding: '1rem 1.25rem', marginBottom: '1rem' }}>
+          <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--ink)' }}>🔖 Saved episodes</span>
+          <span style={{ color: 'var(--green-400)' }}>→</span>
+        </Link>
+
         <button onClick={logout}
-          style={{ width: '100%', padding: '12px', borderRadius: '12px', background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.4)', fontSize: '14px', cursor: 'pointer', marginTop: '1rem' }}>
+          style={{ width: '100%', padding: '12px', borderRadius: '10px', background: 'transparent', border: '1px solid var(--border2)', color: 'var(--muted)', fontSize: '14px', cursor: 'pointer', marginTop: '0.5rem' }}>
           Sign out
         </button>
       </section>

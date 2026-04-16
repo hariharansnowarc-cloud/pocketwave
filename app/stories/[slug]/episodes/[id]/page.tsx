@@ -1,63 +1,103 @@
-import { createClient } from '../../../../lib/supabase'
+import { createServerSupabaseClient } from '../../../../lib/supabase-server'
 import Link from 'next/link'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
+import EpisodeActions from '../../../../components/EpisodeActions'
+import CommentSection from '../../../../components/CommentSection'
 
 export default async function EpisodePage(props: any) {
   const params = await props.params
-  const supabase = createClient()
+  const supabase = await createServerSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
   const { data: episode } = await supabase.from('episodes').select('*, stories(title, slug, genre)').eq('id', params.id).single()
   if (!episode) notFound()
-  const { data: comments } = await supabase.from('comments').select('*, profiles(username)').eq('episode_id', episode.id).is('parent_id', null).order('created_at', { ascending: false })
+
+  // Track view
+  await supabase.from('views').upsert({ episode_id: episode.id, user_id: user.id }, { onConflict: 'episode_id,user_id' })
+  await supabase.from('episodes').update({ views: (episode.views || 0) + 1 }).eq('id', episode.id)
+
+  // Get next/prev episodes
+  const { data: allEpisodes } = await supabase.from('episodes').select('id, episode_number, title').eq('story_id', episode.story_id).eq('is_published', true).order('episode_number', { ascending: true })
+  const currentIndex = allEpisodes?.findIndex(e => e.id === episode.id) ?? -1
+  const prevEp = currentIndex > 0 ? allEpisodes![currentIndex - 1] : null
+  const nextEp = currentIndex < (allEpisodes?.length ?? 0) - 1 ? allEpisodes![currentIndex + 1] : null
+
+  // Like and bookmark status
+  const [{ count: likeCount }, { data: userLike }, { data: userBookmark }] = await Promise.all([
+    supabase.from('likes').select('*', { count: 'exact', head: true }).eq('episode_id', episode.id),
+    supabase.from('likes').select('id').eq('episode_id', episode.id).eq('user_id', user.id).maybeSingle(),
+    supabase.from('bookmarks').select('id').eq('episode_id', episode.id).eq('user_id', user.id).maybeSingle(),
+  ])
+
+  // Comments
+  const { data: comments } = await supabase.from('comments').select('*, profiles(username)').eq('episode_id', episode.id).is('parent_id', null).order('created_at', { ascending: true })
+
+  const { data: profile } = await supabase.from('profiles').select('username, role').eq('id', user.id).single()
 
   return (
-    <main className="min-h-screen bg-[#0a0a0f] text-white">
-      <nav className="border-b border-white/5 px-6 py-4 flex items-center justify-between sticky top-0 z-50 bg-[#0a0a0f]/90 backdrop-blur-sm">
-        <Link href="/" className="font-bold text-xl tracking-tight text-white">Pocketwave</Link>
-        <Link href={`/stories/${episode.stories.slug}`} className="text-sm text-white/40 hover:text-white transition-colors">? {episode.stories.title}</Link>
+    <main style={{ background: 'var(--bg)', minHeight: '100vh' }}>
+
+      {/* NAV */}
+      <nav style={{ borderBottom: '1px solid var(--border)', padding: '0 2rem', height: '60px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 50, background: 'rgba(248,249,246,0.95)', backdropFilter: 'blur(12px)' }}>
+        <Link href="/home" style={{ fontFamily: 'Lora, serif', fontSize: '22px', fontWeight: 700, color: 'var(--ink)', letterSpacing: '-0.5px' }}>Pocketwave</Link>
+        <Link href={`/stories/${episode.stories.slug}`} style={{ fontSize: '13px', color: 'var(--muted)' }}>← {episode.stories.title}</Link>
       </nav>
-      <section className="max-w-2xl mx-auto px-6 pt-16 pb-8">
-        <div className="text-xs font-medium text-blue-400 bg-blue-400/10 px-3 py-1 rounded-full inline-block mb-5">{episode.stories.genre}</div>
-        <p className="text-sm text-white/25 mb-2">Episode {episode.episode_number}</p>
-        <h1 className="text-4xl font-bold tracking-tight mb-6">{episode.title}</h1>
-        <div className="w-10 h-px bg-white/10"></div>
-      </section>
-      <article className="max-w-2xl mx-auto px-6 pb-16">
-        <div className="text-white/70 leading-8 text-lg font-light space-y-5"
-          dangerouslySetInnerHTML={{ __html: episode.content }} />
-      </article>
-      <div className="max-w-2xl mx-auto px-6 pb-16 flex justify-end">
-        <Link href={`/stories/${episode.stories.slug}`} className="text-sm text-white/40 hover:text-white transition-colors">All episodes ?</Link>
-      </div>
-      <section className="max-w-2xl mx-auto px-6 pb-24">
-        <h2 className="text-sm font-medium text-white/40 uppercase tracking-widest mb-8">
-          {comments?.length || 0} Comments
-        </h2>
-        <div className="bg-white/5 border border-white/8 rounded-2xl p-5 mb-8">
-          <textarea placeholder="Share your thoughts..." className="w-full bg-transparent text-sm text-white/70 resize-none outline-none min-h-[80px] placeholder-white/20" />
-          <div className="flex justify-between items-center mt-3 pt-3 border-t border-white/5">
-            <span className="text-xs text-white/20">Sign in to comment</span>
-            <button className="text-sm bg-white text-black px-4 py-2 rounded-full font-medium hover:opacity-90">Post</button>
-          </div>
-        </div>
-        {comments && comments.length > 0 ? (
-          <div className="space-y-3">
-            {comments.map((c: any) => (
-              <div key={c.id} className="bg-white/5 border border-white/8 rounded-xl p-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-7 h-7 rounded-full bg-blue-500/20 flex items-center justify-center text-xs font-bold text-blue-400">
-                    {c.profiles?.username?.[0]?.toUpperCase() || '?'}
-                  </div>
-                  <span className="text-sm font-medium text-white/70">{c.profiles?.username || 'Anonymous'}</span>
-                  <span className="text-xs text-white/20">{new Date(c.created_at).toLocaleDateString()}</span>
-                </div>
-                <p className="text-sm text-white/50 leading-relaxed">{c.body}</p>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-12 text-white/20 text-sm">No comments yet. Be the first!</div>
+
+      <article style={{ maxWidth: '680px', margin: '0 auto', padding: '3rem 2rem' }}>
+
+        {/* THUMBNAIL */}
+        {episode.thumbnail_url && (
+          <img src={episode.thumbnail_url} alt={episode.title} style={{ width: '100%', height: '240px', objectFit: 'cover', borderRadius: '14px', marginBottom: '2rem' }} />
         )}
-      </section>
+
+        {/* HEADER */}
+        <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--green-700)', background: 'var(--green-100)', padding: '4px 14px', borderRadius: '999px', display: 'inline-block', marginBottom: '0.75rem' }}>{episode.stories.genre}</div>
+        <p style={{ fontSize: '13px', color: 'var(--subtle)', marginBottom: '6px' }}>Episode {episode.episode_number}</p>
+        <h1 style={{ fontFamily: 'Lora, serif', fontSize: 'clamp(1.6rem, 4vw, 2.4rem)', fontWeight: 700, color: 'var(--ink)', letterSpacing: '-0.5px', lineHeight: 1.2, marginBottom: '1.5rem' }}>{episode.title}</h1>
+        <div style={{ width: '40px', height: '3px', background: 'var(--green-400)', borderRadius: '2px', marginBottom: '2rem' }}></div>
+
+        {/* CONTENT */}
+        <div style={{ fontSize: '17px', lineHeight: 1.85, color: '#2d3d30', fontWeight: 400 }}
+          dangerouslySetInnerHTML={{ __html: episode.content }} />
+
+        {/* ACTIONS: like, bookmark, share */}
+        <EpisodeActions
+          episodeId={episode.id}
+          storySlug={episode.stories.slug}
+          userId={user.id}
+          initialLiked={!!userLike}
+          initialBookmarked={!!userBookmark}
+          initialLikeCount={likeCount || 0}
+        />
+
+        {/* PREV / NEXT */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', margin: '2rem 0' }}>
+          {prevEp ? (
+            <Link href={`/stories/${episode.stories.slug}/episodes/${prevEp.id}`}
+              style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: '12px', padding: '1rem', display: 'block' }}>
+              <p style={{ fontSize: '11px', color: 'var(--subtle)', marginBottom: '4px' }}>← Previous</p>
+              <p style={{ fontSize: '13px', fontWeight: 500, color: 'var(--ink)', fontFamily: 'Lora, serif' }}>{prevEp.title}</p>
+            </Link>
+          ) : <div />}
+          {nextEp ? (
+            <Link href={`/stories/${episode.stories.slug}/episodes/${nextEp.id}`}
+              style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: '12px', padding: '1rem', display: 'block', textAlign: 'right' }}>
+              <p style={{ fontSize: '11px', color: 'var(--subtle)', marginBottom: '4px' }}>Next →</p>
+              <p style={{ fontSize: '13px', fontWeight: 500, color: 'var(--ink)', fontFamily: 'Lora, serif' }}>{nextEp.title}</p>
+            </Link>
+          ) : <div />}
+        </div>
+
+        {/* COMMENTS */}
+        <CommentSection
+          episodeId={episode.id}
+          userId={user.id}
+          username={profile?.username || 'Reader'}
+          initialComments={comments || []}
+        />
+
+      </article>
     </main>
   )
 }

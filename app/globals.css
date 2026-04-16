@@ -2,7 +2,14 @@
 @import "tailwindcss";
 
 :root {
-  --green-950: #0a1a0f;
+  --bg: #f8f9f6;
+  --surface: #ffffff;
+  --border: rgba(0,0,0,0.07);
+  --border2: rgba(0,0,0,0.15);
+  --ink: #1a2e1f;
+  --ink2: #2d4a34;
+  --muted: #6b7f6e;
+  --subtle: #9aab9e;
   --green-900: #0f2d18;
   --green-800: #1a4028;
   --green-700: #245c38;
@@ -11,20 +18,19 @@
   --green-400: #5cbd7e;
   --green-300: #8dd4a4;
   --green-200: #c0e8ce;
-  --green-100: #e1f5e8;
-  --cream-50:  #fdfaf4;
-  --cream-100: #f7f1e3;
-  --cream-200: #ede3cc;
-  --cream-300: #ddd0b0;
-  --gold:      #c9a84c;
-  --gold-light:#f0d98a;
+  --green-100: #e8f5ed;
+  --green-50:  #f2fbf5;
+  --gold: #b8860b;
+  --gold-bg: #fefce8;
 }
 
-* { font-family: 'Inter', sans-serif; box-sizing: border-box; margin: 0; padding: 0; }
-h1, h2, h3, .serif { font-family: 'Lora', serif; }
-body { background: var(--green-950); color: var(--cream-100); }
-::selection { background: var(--green-600); color: white; }
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: var(--green-950); }
-::-webkit-scrollbar-thumb { background: var(--green-800); border-radius: 3px; }
-a { text-decoration: none; }
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+* { font-family: 'Inter', sans-serif; }
+h1, h2, h3 { font-family: 'Lora', serif; }
+body { background: var(--bg); color: var(--ink); }
+a { text-decoration: none; color: inherit; }
