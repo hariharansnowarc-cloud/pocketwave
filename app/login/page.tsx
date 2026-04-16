@@ -1,13 +1,12 @@
 'use client'
 import { useState, useEffect, Suspense } from 'react'
 import { createClient } from '../lib/supabase'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+
 const supabase = createClient()
+
 function LoginForm() {
-  
-  console.log('URL:', process.env.NEXT_PUBLIC_SUPABASE_URL)
-  const router = useRouter()
   const searchParams = useSearchParams()
   const [mode, setMode] = useState<'login' | 'signup'>('login')
   const [email, setEmail] = useState('')
@@ -38,7 +37,10 @@ function LoginForm() {
     } else {
       const { error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) { setError(error.message); setLoading(false) }
-    else { router.push('/home') }
+      else {
+        await new Promise(resolve => setTimeout(resolve, 500))
+        window.location.href = '/home'
+      }
     }
   }
 
@@ -92,6 +94,7 @@ function LoginForm() {
           ))}
         </div>
 
+        {/* FIELDS */}
         {mode === 'signup' && (
           <div style={{ marginBottom: '12px' }}>
             <label style={{ fontSize: '13px', fontWeight: 500, color: '#2d4a34', display: 'block', marginBottom: '6px' }}>Username</label>
@@ -158,7 +161,7 @@ function LoginForm() {
             cursor: loading ? 'not-allowed' : 'pointer',
             fontFamily: 'Inter, sans-serif'
           }}>
-          {loading ? 'Please wait...' : mode === 'login' ? 'Sign in →' : 'Create account →'}
+          {loading ? 'Signing in...' : mode === 'login' ? 'Sign in →' : 'Create account →'}
         </button>
 
         <p style={{ textAlign: 'center', fontSize: '12px', color: '#9aab9e', marginTop: '1rem' }}>
