@@ -1,10 +1,10 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { createClient } from '../lib/supabase'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 
-export default function LoginPage() {
+function LoginForm() {
   const supabase = createClient()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -42,11 +42,17 @@ export default function LoginPage() {
     setLoading(false)
   }
 
-  const inp = {
-    width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-    borderRadius: '12px', padding: '12px 16px', fontSize: '14px', color: 'var(--cream-100)',
-    outline: 'none', marginBottom: '12px'
-  } as React.CSSProperties
+  const inp: React.CSSProperties = {
+    width: '100%',
+    background: 'rgba(255,255,255,0.05)',
+    border: '1px solid rgba(255,255,255,0.1)',
+    borderRadius: '12px',
+    padding: '12px 16px',
+    fontSize: '14px',
+    color: 'var(--cream-100)',
+    outline: 'none',
+    marginBottom: '12px'
+  }
 
   return (
     <main style={{ minHeight: '100vh', background: 'var(--green-950)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
@@ -57,7 +63,6 @@ export default function LoginPage() {
 
       <div style={{ width: '100%', maxWidth: '400px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '20px', padding: '2rem' }}>
 
-        {/* TABS */}
         <div style={{ display: 'flex', background: 'rgba(255,255,255,0.05)', borderRadius: '12px', padding: '4px', marginBottom: '1.75rem' }}>
           {(['login', 'signup'] as const).map(m => (
             <button key={m} onClick={() => { setMode(m); setError(''); setSuccess('') }}
@@ -67,7 +72,6 @@ export default function LoginPage() {
           ))}
         </div>
 
-        {/* FORM */}
         {mode === 'signup' && (
           <input style={inp} type="text" value={username} onChange={e => setUsername(e.target.value)} placeholder="Username" />
         )}
@@ -78,7 +82,7 @@ export default function LoginPage() {
         {success && <p style={{ color: 'var(--green-400)', fontSize: '13px', marginTop: '10px' }}>{success}</p>}
 
         <button onClick={handleSubmit} disabled={loading}
-          style={{ width: '100%', marginTop: '16px', background: 'var(--green-600)', color: 'white', padding: '12px', borderRadius: '12px', fontSize: '14px', fontWeight: 500, border: 'none', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1, transition: 'opacity 0.15s' }}>
+          style={{ width: '100%', marginTop: '16px', background: 'var(--green-600)', color: 'white', padding: '12px', borderRadius: '12px', fontSize: '14px', fontWeight: 500, border: 'none', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1 }}>
           {loading ? 'Please wait...' : mode === 'login' ? 'Sign in →' : 'Create account →'}
         </button>
 
@@ -87,5 +91,17 @@ export default function LoginPage() {
         </p>
       </div>
     </main>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <main style={{ minHeight: '100vh', background: 'var(--green-950)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <p style={{ color: 'rgba(255,255,255,0.3)' }}>Loading...</p>
+      </main>
+    }>
+      <LoginForm />
+    </Suspense>
   )
 }
