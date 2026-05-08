@@ -29,7 +29,7 @@ export default function GalleryPage() {
 
   async function loadPhotos() {
     setLoading(true)
-    const { data } = await supabase.from('photos').select('*').order('created_at', { ascending: false })
+    const { data, error } = await supabase.from('photos').select('*').order('created_at', { ascending: false })
     if (data) setPhotos(data)
     setLoading(false)
   }
@@ -119,9 +119,9 @@ export default function GalleryPage() {
       <style>{`
         .photo-grid { columns: 3 200px; gap: 10px; }
         @media (max-width: 600px) { .photo-grid { columns: 2 140px; gap: 8px; } }
-        @media (max-width: 380px) { .photo-grid { columns: 1; } }
-        .lightbox-inner { display: flex; flex-direction: row; }
-        @media (max-width: 700px) { .lightbox-inner { flex-direction: column; } }
+        .lightbox-inner { display: flex; flex-direction: row; max-height: 100vh; }
+        @media (max-width: 700px) { .lightbox-inner { flex-direction: column; overflow-y: auto; } }
+        .photo-img { width: 100%; display: block; object-fit: cover; background: var(--rose-light); }
       `}</style>
 
       <nav style={{ padding: '0 1.25rem', height: '60px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 50, background: 'rgba(253,248,242,0.95)', backdropFilter: 'blur(12px)', borderBottom: '1px solid var(--border)' }}>
@@ -133,11 +133,10 @@ export default function GalleryPage() {
         <p style={{ fontSize: '12px', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--rose)', marginBottom: '0.5rem', fontWeight: 500 }}>Our memories</p>
         <h1 style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: 'clamp(2.2rem, 7vw, 3rem)', fontWeight: 600, color: 'var(--ink)', marginBottom: '2rem', lineHeight: 1.1 }}>Gallery 📸</h1>
 
-        {/* UPLOAD SECTION */}
+        {/* UPLOAD */}
         <div style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: '16px', padding: '1.25rem', marginBottom: '1.5rem' }}>
           <h3 style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: '18px', fontWeight: 600, color: 'var(--ink)', marginBottom: '1rem' }}>Add a photo</h3>
 
-          {/* WHO */}
           <div style={{ marginBottom: '12px' }}>
             <label style={{ fontSize: '12px', fontWeight: 500, color: 'var(--muted)', display: 'block', marginBottom: '6px' }}>Uploaded by *</label>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
@@ -150,7 +149,6 @@ export default function GalleryPage() {
             </div>
           </div>
 
-          {/* CATEGORY */}
           <div style={{ marginBottom: '12px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
               <label style={{ fontSize: '12px', fontWeight: 500, color: 'var(--muted)' }}>Category</label>
@@ -180,7 +178,6 @@ export default function GalleryPage() {
             </div>
           </div>
 
-          {/* CAPTION */}
           <div style={{ marginBottom: '12px' }}>
             <label style={{ fontSize: '12px', fontWeight: 500, color: 'var(--muted)', display: 'block', marginBottom: '6px' }}>Caption (optional)</label>
             <input type="text" value={caption} onChange={e => setCaption(e.target.value)}
@@ -189,24 +186,21 @@ export default function GalleryPage() {
 
           {error && <p style={{ color: '#dc2626', fontSize: '13px', marginBottom: '10px' }}>{error}</p>}
 
-          {/* HIDDEN FILE INPUT */}
+          {/* FILE INPUT — no capture attribute so it opens gallery on mobile */}
           <input
             ref={fileInputRef}
             type="file"
             accept="image/*"
-            capture="environment"
             onChange={handleFileChange}
             style={{ display: 'none' }}
           />
 
-          {/* UPLOAD BUTTONS */}
-          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-            <button onClick={triggerUpload} disabled={uploading}
-              style={{ background: uploading ? 'var(--rose-mid)' : 'var(--rose)', color: 'white', border: 'none', padding: '11px 22px', borderRadius: '999px', fontSize: '14px', fontWeight: 500, cursor: uploading ? 'not-allowed' : 'pointer', flex: 1, minWidth: '140px' }}>
-              {uploading ? 'Uploading...' : '📷 Take / Upload photo'}
-            </button>
-          </div>
-          {uploading && <p style={{ fontSize: '12px', color: 'var(--rose)', marginTop: '8px' }}>Uploading your photo... please wait ✨</p>}
+          <button onClick={triggerUpload} disabled={uploading}
+            style={{ background: uploading ? 'var(--rose-mid)' : 'var(--rose)', color: 'white', border: 'none', padding: '12px 24px', borderRadius: '999px', fontSize: '14px', fontWeight: 500, cursor: uploading ? 'not-allowed' : 'pointer', width: '100%' }}>
+            {uploading ? 'Uploading... please wait' : '+ Upload photo from gallery'}
+          </button>
+
+          {uploading && <p style={{ fontSize: '12px', color: 'var(--rose)', marginTop: '8px', textAlign: 'center' }}>Uploading your photo ✨</p>}
         </div>
 
         {/* CATEGORY FILTER */}
@@ -219,16 +213,26 @@ export default function GalleryPage() {
           ))}
         </div>
 
-        {/* PHOTO GRID */}
+        {/* GRID */}
         {loading ? (
           <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--subtle)' }}>Loading photos...</div>
         ) : filtered.length > 0 ? (
           <div className="photo-grid">
             {filtered.map(photo => (
               <div key={photo.id} onClick={() => setSelected(photo)}
-                style={{ breakInside: 'avoid', marginBottom: '10px', borderRadius: '12px', overflow: 'hidden', cursor: 'pointer', background: '#fff', border: '1px solid var(--border)' }}>
-                <img src={photo.url} alt={photo.caption || ''} style={{ width: '100%', display: 'block', minHeight: '100px', objectFit: 'cover' }}
-                  loading="lazy" />
+                style={{ breakInside: 'avoid', marginBottom: '10px', borderRadius: '12px', overflow: 'hidden', cursor: 'pointer', background: 'var(--rose-light)', border: '1px solid var(--border)' }}>
+                <img
+                  className="photo-img"
+                  src={photo.url}
+                  alt={photo.caption || 'photo'}
+                  loading="lazy"
+                  crossOrigin="anonymous"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement
+                    target.style.minHeight = '80px'
+                    target.style.background = 'var(--rose-light)'
+                  }}
+                />
                 <div style={{ padding: '8px 10px' }}>
                   {photo.category && (
                     <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--rose)', background: 'var(--rose-light)', padding: '2px 7px', borderRadius: '999px', display: 'inline-block', marginBottom: '3px' }}>{photo.category}</span>
@@ -255,18 +259,13 @@ export default function GalleryPage() {
       {/* LIGHTBOX */}
       {selected && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', zIndex: 100, overflowY: 'auto' }}>
-          <div className="lightbox-inner" style={{ minHeight: '100vh' }}>
-
-            {/* IMAGE */}
-            <div onClick={() => setSelected(null)} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem', cursor: 'pointer', minHeight: '40vh' }}>
+          <div className="lightbox-inner">
+            <div onClick={() => setSelected(null)} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem', cursor: 'pointer', minHeight: '50vw' }}>
               <img src={selected.url} alt={selected.caption || ''} onClick={e => e.stopPropagation()}
                 style={{ maxWidth: '100%', maxHeight: '80vh', objectFit: 'contain', borderRadius: '12px', cursor: 'default', display: 'block' }} />
             </div>
 
-            {/* INFO + COMMENTS */}
-            <div onClick={e => e.stopPropagation()}
-              style={{ width: '100%', maxWidth: '320px', background: 'var(--bg)', display: 'flex', flexDirection: 'column', minHeight: '320px' }}>
-
+            <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: '300px', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
               <div style={{ padding: '1rem', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px' }}>
                 <div>
                   {selected.category && <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--rose)', background: 'var(--rose-light)', padding: '2px 8px', borderRadius: '999px', display: 'inline-block', marginBottom: '6px' }}>{selected.category}</span>}
@@ -275,8 +274,7 @@ export default function GalleryPage() {
                   <p style={{ fontSize: '12px', color: 'var(--subtle)' }}>🕐 {new Date(selected.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</p>
                   {selected.uploaded_by && <p style={{ fontSize: '12px', color: 'var(--subtle)' }}>👤 {selected.uploaded_by}</p>}
                 </div>
-                <button onClick={() => setSelected(null)}
-                  style={{ background: 'none', border: 'none', fontSize: '22px', cursor: 'pointer', color: 'var(--muted)', lineHeight: 1, flexShrink: 0 }}>×</button>
+                <button onClick={() => setSelected(null)} style={{ background: 'none', border: 'none', fontSize: '22px', cursor: 'pointer', color: 'var(--muted)', lineHeight: 1, flexShrink: 0 }}>×</button>
               </div>
 
               <div style={{ padding: '0.75rem 1rem', borderBottom: '1px solid var(--border)' }}>
@@ -286,11 +284,8 @@ export default function GalleryPage() {
                 </button>
               </div>
 
-              {/* COMMENTS */}
               <div style={{ flex: 1, overflowY: 'auto', padding: '0.75rem 1rem' }}>
-                <p style={{ fontSize: '11px', fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>
-                  Comments ({comments.length})
-                </p>
+                <p style={{ fontSize: '11px', fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>Comments ({comments.length})</p>
                 {comments.length === 0 ? (
                   <p style={{ fontSize: '13px', color: 'var(--subtle)', textAlign: 'center', padding: '1rem 0' }}>No comments yet</p>
                 ) : (
@@ -301,8 +296,7 @@ export default function GalleryPage() {
                           <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--rose)' }}>{c.from_name}</span>
                           <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                             <span style={{ fontSize: '10px', color: 'var(--subtle)' }}>{new Date(c.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span>
-                            <button onClick={() => deleteComment(c.id)}
-                              style={{ fontSize: '13px', color: 'var(--subtle)', background: 'none', border: 'none', cursor: 'pointer' }}>×</button>
+                            <button onClick={() => deleteComment(c.id)} style={{ fontSize: '13px', color: 'var(--subtle)', background: 'none', border: 'none', cursor: 'pointer' }}>×</button>
                           </div>
                         </div>
                         <p style={{ fontSize: '13px', color: 'var(--ink)', lineHeight: 1.5 }}>{c.body}</p>
@@ -312,7 +306,6 @@ export default function GalleryPage() {
                 )}
               </div>
 
-              {/* ADD COMMENT */}
               <div style={{ padding: '0.75rem 1rem', borderTop: '1px solid var(--border)' }}>
                 <div style={{ display: 'flex', gap: '6px', marginBottom: '8px' }}>
                   {['Hari Haran', 'Jothi Lakshmi'].map(name => (
