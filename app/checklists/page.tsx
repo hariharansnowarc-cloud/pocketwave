@@ -2,6 +2,8 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '../lib/supabase'
 import Link from 'next/link'
+import Nav from '../components/Nav'
+import Footer from '../components/Footer'
 
 const supabase = createClient()
 
