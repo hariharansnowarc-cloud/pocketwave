@@ -1,36 +1,32 @@
-@import url('https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600&display=swap');
 @import "tailwindcss";
 
 :root {
-  --bg: #f8f9f6;
-  --surface: #ffffff;
-  --border: rgba(0,0,0,0.07);
-  --border2: rgba(0,0,0,0.15);
-  --ink: #1a2e1f;
-  --ink2: #2d4a34;
-  --muted: #6b7f6e;
-  --subtle: #9aab9e;
-  --green-900: #0f2d18;
-  --green-800: #1a4028;
-  --green-700: #245c38;
-  --green-600: #2d7a4a;
-  --green-500: #3a9e60;
-  --green-400: #5cbd7e;
-  --green-300: #8dd4a4;
-  --green-200: #c0e8ce;
-  --green-100: #e8f5ed;
-  --green-50:  #f2fbf5;
-  --gold: #b8860b;
-  --gold-bg: #fefce8;
+  --bg:        #fdf8f2;
+  --surface:   #ffffff;
+  --border:    rgba(0,0,0,0.07);
+  --border2:   rgba(0,0,0,0.13);
+  --ink:       #2c1a0e;
+  --muted:     #7a6152;
+  --subtle:    #b09a8a;
+  --rose:      #c9626a;
+  --rose-light:#f7e8e9;
+  --rose-mid:  #e8a0a5;
+  --gold:      #b8860b;
+  --gold-light:#fef3d0;
+  --gold-mid:  #d4aa50;
+  --cream:     #fdf8f2;
+  --cream2:    #f5ede0;
+  --green:     #4a7c59;
+  --green-light:#e8f2eb;
 }
 
-*, *::before, *::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 * { font-family: 'Inter', sans-serif; }
-h1, h2, h3 { font-family: 'Lora', serif; }
+h1, h2, h3, h4, .serif { font-family: 'Cormorant Garamond', serif; }
 body { background: var(--bg); color: var(--ink); }
 a { text-decoration: none; color: inherit; }
+::selection { background: var(--rose-light); color: var(--rose); }
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--rose-mid); border-radius: 3px; }

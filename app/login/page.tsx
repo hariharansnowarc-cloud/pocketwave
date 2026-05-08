@@ -1,185 +1,110 @@
 'use client'
-import { useState, useEffect, Suspense } from 'react'
-import { createClient } from '../lib/supabase'
-import { useSearchParams } from 'next/navigation'
-import Link from 'next/link'
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 
-const supabase = createClient()
-
-function LoginForm() {
-  const searchParams = useSearchParams()
-  const [mode, setMode] = useState<'login' | 'signup'>('login')
-  const [email, setEmail] = useState('')
+export default function LoginPage() {
+  const router = useRouter()
   const [password, setPassword] = useState('')
-  const [username, setUsername] = useState('')
   const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
 
-  useEffect(() => {
-    if (searchParams.get('mode') === 'signup') setMode('signup')
-  }, [searchParams])
-
-  async function handleSubmit() {
+  async function handleLogin() {
     setLoading(true)
     setError('')
-    setSuccess('')
-
-    if (mode === 'signup') {
-      if (!username.trim()) { setError('Please enter a username.'); setLoading(false); return }
-      if (password.length < 6) { setError('Password must be at least 6 characters.'); setLoading(false); return }
-      const { error } = await supabase.auth.signUp({
-        email, password,
-        options: { data: { full_name: username } }
-      })
-      if (error) { setError(error.message); setLoading(false) }
-      else { setSuccess('Account created! Check your email to confirm, then sign in.'); setLoading(false) }
+    if (password === '062613') {
+      document.cookie = 'hj_auth=true; path=/; max-age=2592000' // 30 days
+      router.push('/')
+      router.refresh()
     } else {
-      const { error } = await supabase.auth.signInWithPassword({ email, password })
-      if (error) { setError(error.message); setLoading(false) }
-      else {
-        await new Promise(resolve => setTimeout(resolve, 500))
-        window.location.href = '/home'
-      }
+      setError('Wrong password. Try again 💔')
+      setLoading(false)
     }
   }
 
   return (
     <main style={{
       minHeight: '100vh',
-      background: '#f0f7f2',
+      background: 'var(--bg)',
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
       padding: '2rem',
-      fontFamily: 'Inter, sans-serif'
+      position: 'relative',
+      overflow: 'hidden'
     }}>
-      <Link href="/" style={{
-        fontFamily: 'Lora, serif',
-        fontSize: '26px',
-        fontWeight: 700,
-        color: '#1a4028',
-        marginBottom: '2rem',
-        display: 'block',
-        textAlign: 'center',
-        textDecoration: 'none'
-      }}>
-        Pocketwave
-      </Link>
 
+      {/* BG DECORATION */}
+      <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+        <div style={{ position: 'absolute', top: '-80px', left: '-80px', width: '350px', height: '350px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(201,98,106,0.08) 0%, transparent 70%)' }}></div>
+        <div style={{ position: 'absolute', bottom: '-80px', right: '-80px', width: '400px', height: '400px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(201,98,106,0.07) 0%, transparent 70%)' }}></div>
+        {['8% / 6%', '15% / auto / 8%', 'auto / 10% / 15%', 'auto / auto / 12% / 10%'].map((pos, i) => {
+          const [top, right, bottom, left] = pos.split(' / ')
+          return <div key={i} style={{ position: 'absolute', top: top !== 'auto' ? top : undefined, right: right !== 'auto' ? right : undefined, bottom: bottom !== 'auto' ? bottom : undefined, left: left !== 'auto' ? left : undefined, fontSize: '20px', opacity: 0.1 }}>🌸</div>
+        })}
+      </div>
+
+      {/* LOGO */}
+      <div style={{ textAlign: 'center', marginBottom: '2.5rem', position: 'relative', zIndex: 1 }}>
+        <p style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: '42px', fontWeight: 600, color: 'var(--ink)', lineHeight: 1.1 }}>
+          Hari <span style={{ color: 'var(--rose)' }}>♥</span> Jothi
+        </p>
+        <p style={{ fontSize: '13px', color: 'var(--subtle)', marginTop: '6px' }}>Our private space 🌸</p>
+      </div>
+
+      {/* CARD */}
       <div style={{
         width: '100%',
-        maxWidth: '420px',
-        background: '#ffffff',
-        border: '1px solid #d0e8d8',
+        maxWidth: '380px',
+        background: '#fff',
+        border: '1px solid var(--border)',
         borderRadius: '20px',
         padding: '2rem',
-        boxShadow: '0 4px 24px rgba(0,0,0,0.06)'
+        boxShadow: '0 4px 30px rgba(201,98,106,0.08)',
+        position: 'relative',
+        zIndex: 1
       }}>
+        <h2 style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: '22px', fontWeight: 600, color: 'var(--ink)', marginBottom: '4px', textAlign: 'center' }}>Welcome back 💛</h2>
+        <p style={{ fontSize: '13px', color: 'var(--subtle)', textAlign: 'center', marginBottom: '1.75rem' }}>Enter the password to continue</p>
 
-        {/* TABS */}
-        <div style={{ display: 'flex', background: '#f0f7f2', borderRadius: '12px', padding: '4px', marginBottom: '1.75rem' }}>
-          {(['login', 'signup'] as const).map(m => (
-            <button key={m} onClick={() => { setMode(m); setError(''); setSuccess('') }}
-              style={{
-                flex: 1, padding: '9px', borderRadius: '9px',
-                fontSize: '14px', fontWeight: 500, border: 'none', cursor: 'pointer',
-                transition: 'all 0.15s',
-                background: mode === m ? '#2d7a4a' : 'transparent',
-                color: mode === m ? '#ffffff' : '#6b7f6e'
-              }}>
-              {m === 'login' ? 'Sign in' : 'Create account'}
-            </button>
-          ))}
-        </div>
+        <label style={{ fontSize: '12px', fontWeight: 500, color: 'var(--muted)', display: 'block', marginBottom: '6px' }}>Password</label>
+        <input
+          type="password"
+          value={password}
+          onChange={e => setPassword(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && handleLogin()}
+          placeholder="••••••"
+          style={{
+            width: '100%', padding: '12px 16px', fontSize: '16px',
+            border: '1.5px solid var(--border2)', borderRadius: '12px',
+            color: 'var(--ink)', background: 'var(--bg)', outline: 'none',
+            fontFamily: 'Inter, sans-serif', letterSpacing: '0.1em',
+            marginBottom: '4px'
+          }}
+          autoFocus
+        />
 
-        {/* FIELDS */}
-        {mode === 'signup' && (
-          <div style={{ marginBottom: '12px' }}>
-            <label style={{ fontSize: '13px', fontWeight: 500, color: '#2d4a34', display: 'block', marginBottom: '6px' }}>Username</label>
-            <input
-              type="text"
-              value={username}
-              onChange={e => setUsername(e.target.value)}
-              placeholder="your_username"
-              style={{
-                width: '100%', padding: '11px 14px', fontSize: '14px',
-                border: '1.5px solid #c0d8c8', borderRadius: '10px',
-                color: '#1a2e1f', background: '#fff', outline: 'none',
-                fontFamily: 'Inter, sans-serif'
-              }}
-            />
-          </div>
-        )}
-
-        <div style={{ marginBottom: '12px' }}>
-          <label style={{ fontSize: '13px', fontWeight: 500, color: '#2d4a34', display: 'block', marginBottom: '6px' }}>Email address</label>
-          <input
-            type="email"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            placeholder="you@example.com"
-            style={{
-              width: '100%', padding: '11px 14px', fontSize: '14px',
-              border: '1.5px solid #c0d8c8', borderRadius: '10px',
-              color: '#1a2e1f', background: '#fff', outline: 'none',
-              fontFamily: 'Inter, sans-serif'
-            }}
-          />
-        </div>
-
-        <div style={{ marginBottom: '4px' }}>
-          <label style={{ fontSize: '13px', fontWeight: 500, color: '#2d4a34', display: 'block', marginBottom: '6px' }}>Password</label>
-          <input
-            type="password"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            placeholder="••••••••"
-            onKeyDown={e => e.key === 'Enter' && handleSubmit()}
-            style={{
-              width: '100%', padding: '11px 14px', fontSize: '14px',
-              border: '1.5px solid #c0d8c8', borderRadius: '10px',
-              color: '#1a2e1f', background: '#fff', outline: 'none',
-              fontFamily: 'Inter, sans-serif'
-            }}
-          />
-        </div>
-
-        {error && <p style={{ color: '#dc2626', fontSize: '13px', marginTop: '10px', fontWeight: 500 }}>{error}</p>}
-        {success && <p style={{ color: '#2d7a4a', fontSize: '13px', marginTop: '10px', fontWeight: 500 }}>{success}</p>}
+        {error && <p style={{ color: '#dc2626', fontSize: '13px', marginTop: '8px', marginBottom: '4px' }}>{error}</p>}
 
         <button
-          onClick={handleSubmit}
-          disabled={loading}
+          onClick={handleLogin}
+          disabled={loading || !password}
           style={{
-            width: '100%', marginTop: '16px',
-            background: loading ? '#9aab9e' : '#2d7a4a',
-            color: 'white', padding: '13px',
-            borderRadius: '12px', fontSize: '15px',
-            fontWeight: 600, border: 'none',
-            cursor: loading ? 'not-allowed' : 'pointer',
+            width: '100%', marginTop: '14px',
+            background: 'var(--rose)', color: 'white',
+            padding: '13px', borderRadius: '12px',
+            fontSize: '15px', fontWeight: 500,
+            border: 'none', cursor: loading ? 'not-allowed' : 'pointer',
+            opacity: (!password || loading) ? 0.6 : 1,
             fontFamily: 'Inter, sans-serif'
           }}>
-          {loading ? 'Signing in...' : mode === 'login' ? 'Sign in →' : 'Create account →'}
+          {loading ? 'Opening...' : 'Enter our space →'}
         </button>
-
-        <p style={{ textAlign: 'center', fontSize: '12px', color: '#9aab9e', marginTop: '1rem' }}>
-          By continuing you agree to our terms of service.
-        </p>
       </div>
-    </main>
-  )
-}
 
-export default function LoginPage() {
-  return (
-    <Suspense fallback={
-      <main style={{ minHeight: '100vh', background: '#f0f7f2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <p style={{ color: '#6b7f6e' }}>Loading...</p>
-      </main>
-    }>
-      <LoginForm />
-    </Suspense>
+      <p style={{ fontSize: '12px', color: 'var(--subtle)', marginTop: '2rem', position: 'relative', zIndex: 1 }}>
+        Made with love 🌸
+      </p>
+    </main>
   )
 }
